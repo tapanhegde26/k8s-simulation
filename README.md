@@ -31,7 +31,7 @@ See how Kubernetes components communicate with each other:
 
 
 <p align="center">
- <img src="docs/arch-flow-demo.gif" alt="Architecture Flow Animation" width="700">
+ <img src="scripts/docs/arch-flow-demo.gif" alt="Architecture Flow Animation" width="700">
 </p>
 
 
@@ -40,7 +40,7 @@ Watch the step-by-step process of creating a pod:
 
 
 <p align="center">
- <img src="docs/pod-creation-demo.gif" alt="Pod Creation Flow Animation" width="700">
+ <img src="scripts/docs/pod-creation-demo.gif" alt="Pod Creation Flow Animation" width="700">
 </p>
 
 
