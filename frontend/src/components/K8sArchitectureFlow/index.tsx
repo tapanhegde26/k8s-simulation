@@ -17,6 +17,7 @@ export function K8sArchitectureFlow() {
   const [showSteps, setShowSteps] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [podCreated, setPodCreated] = useState(false);
+  const [pvcBound, setPvcBound] = useState(false);
 
   const flow = flows.find(f => f.id === currentFlow)!;
   const currentStep = currentStepIndex >= 0 ? flow.steps[currentStepIndex] : null;
@@ -33,12 +34,14 @@ export function K8sArchitectureFlow() {
     });
   }
 
-  // Check if pod is being created (last step in pod-creation or deployment flow)
   useEffect(() => {
     if (currentStep?.to === 'pod') {
       setPodCreated(true);
     }
-  }, [currentStep]);
+    if (currentFlow === 'persistent-volume' && currentStep?.id === 'step5') {
+      setPvcBound(true);
+    }
+  }, [currentStep, currentFlow]);
 
   const nextStep = useCallback(() => {
     setCurrentStepIndex(prev => {
@@ -54,6 +57,7 @@ export function K8sArchitectureFlow() {
     setCurrentStepIndex(-1);
     setIsPlaying(false);
     setPodCreated(false);
+    setPvcBound(false);
   }, []);
 
   const togglePlay = useCallback(() => {
@@ -61,10 +65,12 @@ export function K8sArchitectureFlow() {
       setCurrentStepIndex(0);
       setIsPlaying(true);
       setPodCreated(false);
+      setPvcBound(false);
     } else if (currentStepIndex === -1) {
       setCurrentStepIndex(0);
       setIsPlaying(true);
       setPodCreated(false);
+      setPvcBound(false);
     } else {
       setIsPlaying(prev => !prev);
     }
@@ -92,13 +98,26 @@ export function K8sArchitectureFlow() {
 
   const visibleComponents = components.filter(comp => {
     if (currentFlow === 'pod-creation') {
-      return !['deployment', 'replicaset', 'service', 'ingress', 'kube-proxy'].includes(comp.id);
+      return !['deployment', 'replicaset', 'service', 'ingress', 'kube-proxy', 'pv', 'pvc', 'storage-backend'].includes(comp.id);
     }
     if (currentFlow === 'deployment') {
-      return !['ingress', 'service', 'kube-proxy'].includes(comp.id);
+      return !['ingress', 'service', 'kube-proxy', 'pv', 'pvc', 'storage-backend'].includes(comp.id);
     }
     if (currentFlow === 'service-request') {
       return ['ingress', 'kube-proxy', 'service', 'pod'].includes(comp.id);
+    }
+    if (currentFlow === 'persistent-volume') {
+      return [
+        'kubectl',
+        'api-server',
+        'etcd',
+        'controller-manager',
+        'pv',
+        'pvc',
+        'storage-backend',
+        'kubelet',
+        'pod',
+      ].includes(comp.id);
     }
     return true;
   });
@@ -152,7 +171,13 @@ export function K8sArchitectureFlow() {
         {/* Diagram Area */}
         <div className="flex-1 relative overflow-auto">
           {/* SVG Canvas */}
-          <div className="absolute inset-0 p-6" style={{ minWidth: '1000px', minHeight: '480px' }}>
+          <motion.div
+            className="absolute inset-0 p-6"
+            style={{
+              minWidth: '1000px',
+              minHeight: currentFlow === 'persistent-volume' ? '520px' : '480px',
+            }}
+          >
             {/* External Area */}
             <div 
               className="absolute rounded-xl border-2 border-dashed border-slate-600 bg-slate-800/30"
@@ -197,6 +222,8 @@ export function K8sArchitectureFlow() {
             {/* Components */}
             {visibleComponents.map(comp => {
               const isPodAndCreated = comp.id === 'pod' && podCreated;
+              const isStorageBound =
+                (comp.id === 'pv' || comp.id === 'pvc') && pvcBound;
               
               return (
                 <motion.div
@@ -206,11 +233,11 @@ export function K8sArchitectureFlow() {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ 
                     opacity: 1, 
-                    scale: isPodAndCreated ? [1, 1.3, 1] : 1,
+                    scale: isPodAndCreated || isStorageBound ? [1, 1.3, 1] : 1,
                   }}
                   transition={{ 
-                    duration: isPodAndCreated ? 0.5 : 0.3,
-                    scale: isPodAndCreated ? { repeat: 2, duration: 0.3 } : undefined
+                    duration: isPodAndCreated || isStorageBound ? 0.5 : 0.3,
+                    scale: isPodAndCreated || isStorageBound ? { repeat: 2, duration: 0.3 } : undefined
                   }}
                 >
                   <div className="flex flex-col items-center">
@@ -219,7 +246,7 @@ export function K8sArchitectureFlow() {
                       color={comp.color}
                       size={60}
                       isActive={activeComponents.has(comp.id)}
-                      isHighlighted={selectedComponent === comp.id || isPodAndCreated}
+                      isHighlighted={selectedComponent === comp.id || isPodAndCreated || isStorageBound}
                       onClick={() => setSelectedComponent(selectedComponent === comp.id ? null : comp.id)}
                     />
                     <span className={`mt-1 text-xs font-medium text-center max-w-[90px] leading-tight ${
@@ -229,6 +256,19 @@ export function K8sArchitectureFlow() {
                     </span>
                   </div>
                   
+                  {isStorageBound && (
+                    <motion.div
+                      className="absolute -top-2 -right-2"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <motion.div className="w-6 h-6 bg-teal-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-teal-500/50">
+                        B
+                      </motion.div>
+                    </motion.div>
+                  )}
+
                   {/* Pod creation success indicator */}
                   {isPodAndCreated && (
                     <motion.div
@@ -245,6 +285,30 @@ export function K8sArchitectureFlow() {
                 </motion.div>
               );
             })}
+
+            <AnimatePresence>
+              {currentFlow === 'persistent-volume' && currentStep?.id === 'step3' && (
+                <motion.div
+                  className="absolute pointer-events-none"
+                  initial={{
+                    left: getComponentPosition('storage-backend').x - 15,
+                    top: getComponentPosition('storage-backend').y - 15,
+                    scale: 0,
+                    opacity: 0,
+                  }}
+                  animate={{
+                    left: getComponentPosition('pv').x - 15,
+                    top: getComponentPosition('pv').y - 15,
+                    scale: [0, 1.4, 1],
+                    opacity: [0, 1, 1],
+                  }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.9, ease: 'easeOut' }}
+                >
+                  <div className="w-8 h-8 bg-amber-500 rounded-md shadow-lg shadow-amber-500/50" />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Pod Creation Animation - Shows a mini pod flying to the pod location */}
             <AnimatePresence>
@@ -271,6 +335,31 @@ export function K8sArchitectureFlow() {
                   </div>
                 </motion.div>
               )}
+              {currentFlow === 'persistent-volume' &&
+                currentStep?.to === 'pod' &&
+                currentStep?.from === 'pv' && (
+                  <motion.div
+                    className="absolute pointer-events-none"
+                    initial={{
+                      left: getComponentPosition('pv').x - 15,
+                      top: getComponentPosition('pv').y - 15,
+                      scale: 0,
+                      opacity: 0,
+                    }}
+                    animate={{
+                      left: getComponentPosition('pod').x - 15,
+                      top: getComponentPosition('pod').y - 15,
+                      scale: [0, 1.4, 1],
+                      opacity: [0, 1, 1],
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                  >
+                    <motion.div className="px-1.5 py-0.5 bg-teal-500 rounded text-white text-[10px] font-bold shadow-lg">
+                      /data
+                    </motion.div>
+                  </motion.div>
+                )}
             </AnimatePresence>
 
             {/* Step Display - Fixed top right corner */}
@@ -308,7 +397,7 @@ export function K8sArchitectureFlow() {
                 )}
               </AnimatePresence>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Side Panel - Optional */}
@@ -478,6 +567,12 @@ export function K8sArchitectureFlow() {
           <div className="w-3 h-3 bg-slate-500 rounded" />
           <span className="text-slate-400">External</span>
         </div>
+        {currentFlow === 'persistent-volume' && (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-teal-500 rounded" />
+            <span className="text-slate-400">PV / PVC</span>
+          </div>
+        )}
       </div>
     </div>
   );

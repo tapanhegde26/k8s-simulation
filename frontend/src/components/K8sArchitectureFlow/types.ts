@@ -1,6 +1,6 @@
 // Types for K8s Architecture Flow Animation
 
-export type FlowType = 'pod-creation' | 'deployment' | 'service-request';
+export type FlowType = 'pod-creation' | 'deployment' | 'service-request' | 'persistent-volume';
 
 export type ComponentId = 
   | 'kubectl'
@@ -15,7 +15,10 @@ export type ComponentId =
   | 'ingress'
   | 'service'
   | 'replicaset'
-  | 'deployment';
+  | 'deployment'
+  | 'pv'
+  | 'pvc'
+  | 'storage-backend';
 
 export interface K8sComponent {
   id: ComponentId;

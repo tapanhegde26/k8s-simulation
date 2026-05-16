@@ -22,10 +22,12 @@ import {
   Workflow,
   PanelRightOpen,
   PanelRightClose,
-  Zap
+  Zap,
+  HardDrive
 } from 'lucide-react';
+import { PersistentVolumeFlowAnimation } from './components/PersistentVolumeFlowAnimation';
 
-type Tab = 'architecture' | 'flow-animation' | 'pod-flow' | 'pod-flow-animation' | 'resources' | 'interactive';
+type Tab = 'architecture' | 'flow-animation' | 'pod-flow' | 'pod-flow-animation' | 'pv-flow-animation' | 'resources' | 'interactive';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('architecture');
@@ -45,6 +47,7 @@ function App() {
     { id: 'architecture' as Tab, label: 'Cluster Architecture', icon: Server },
     { id: 'flow-animation' as Tab, label: 'Architecture Flow', icon: Workflow },
     { id: 'pod-flow-animation' as Tab, label: 'Pod Creation Flow', icon: Zap },
+    { id: 'pv-flow-animation' as Tab, label: 'PV / PVC Flow', icon: HardDrive },
     { id: 'pod-flow' as Tab, label: 'Pod Flow (Timeline)', icon: GitBranch },
     { id: 'resources' as Tab, label: 'Resources', icon: Layers },
     { id: 'interactive' as Tab, label: 'Interactive Lab', icon: Activity },
@@ -157,6 +160,11 @@ function App() {
               {activeTab === 'pod-flow-animation' && (
                 <div className="h-full min-h-[700px]">
                   <PodCreationFlowAnimation />
+                </div>
+              )}
+              {activeTab === 'pv-flow-animation' && (
+                <div className="h-full min-h-[700px]">
+                  <PersistentVolumeFlowAnimation />
                 </div>
               )}
               {activeTab === 'pod-flow' && <PodCreationFlow />}
